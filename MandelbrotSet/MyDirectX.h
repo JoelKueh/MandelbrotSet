@@ -7,6 +7,7 @@
 using namespace DirectX;
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <dxgi.h>
 //#include <d3d11_1.h>
 //#include <d3d11_2.h>
 //#include <d3d11_3.h>
@@ -17,8 +18,11 @@ using namespace DirectX;
 //#include <d3dcommon.h>
 //#include <d3dcsx.h>
 //#include <windows.graphics.directx.direct3d11.interop.h>
+
+#pragma comment (lib, "user32")
 #pragma comment (lib, "D3D11.lib")
 #pragma comment (lib, "D3Dcompiler.lib")
+#pragma comment (lib, "dxgi.lib")
 //#pragma comment (lib, "d3d11_1.lib")
 //#pragma comment (lib, "d3d11_2.lib")
 //#pragma comment (lib, "d3d11_3.lib")
@@ -41,52 +45,36 @@ public:
 
 private:
 
-	HRESULT InitDevice(HWND hWnd);
-	HRESULT CreateVertexBuffer();
-	HRESULT CompileShaders();
-	HRESULT CompileComputeShader(_In_ LPCWSTR srcFile, _In_ LPCSTR entryPoint,
-		_In_ ID3D11Device* device, _Outptr_ ID3DBlob** blob);
-
-	struct simpleVertex
-	{
-		XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
-		XMFLOAT3 col = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	};
+	VOID InitDevice(HWND hWnd);
+	VOID InitTargetView();
+	VOID CompileShaders();
+	VOID InitVertexBuffer();
 
 	struct dxData
 	{
-		IDXGISwapChain* swapChain = nullptr;
-		ID3D11Device* device = nullptr;
-		ID3D11DeviceContext* deviceContext = nullptr;
-		ID3D11ComputeShader* computeShader = nullptr;
-		ID3D11RenderTargetView* renderTarget = nullptr;
-		ID3D11Texture2D* frameBuffer = nullptr;
-		ID3D11Texture2D* tex = nullptr;
-		ID3D11ShaderResourceView* shaderResourceView = nullptr;
-		ID3D11InputLayout* vertexLayout = nullptr;
-		ID3D11Buffer* vertexBuffer = nullptr;
+		ID3D11Device* device = NULL;
+		ID3D11DeviceContext* deviceContext = NULL;
+		IDXGISwapChain* swapChain = NULL;
 
-		int width = 0;
-		int height = 0;
+		ID3D11RenderTargetView* renderTargetView = NULL;
+		ID3D11InputLayout* inputLayout = NULL;
 
-		simpleVertex vertices[4]
-		{
-			// Vertex 1
-			XMFLOAT3(-3.0f, 3.0f, 0.5f),
-			XMFLOAT3(1.0f, 1.0f, 1.0f),
+		ID3D11VertexShader* vs = NULL;
+		ID3D11PixelShader* ps = NULL;
 
-			// Vertex 2
-			XMFLOAT3(3.0f, 3.0f, 0.5f),
-			XMFLOAT3(1.0f, 1.0f, 1.0f),
-
-			// Vertex 3
-			XMFLOAT3(-3.0f, -3.0f, 0.5),
-			XMFLOAT3(1.0f, 1.0f, 1.0f),
-
-			// Vertex 4
-			XMFLOAT3(3.0f, -3.0f, 0.5f),
-			XMFLOAT3(1.0f, 1.0f, 1.0f),
+		ID3D11Buffer* vertexBuffer = NULL;
+		float vertexArray[12] = {
+		   -1.0f, -1.0f,  0.0f, // point at bottom-left
+		   -1.0f,  1.0f,  0.0f, // point at top-left
+			1.0f, -1.0f,  0.0f, // point at bottom-right
+			1.0f,  1.0f,  0.0f,  // point at top-right
 		};
+		UINT vertexStride = 3 * sizeof(float);
+		UINT vertexOffset = 0;
+		UINT vertexCount = 4;
+
+		float width = 0;
+		float height = 0;
 	};
 	dxData g_dx;
 };

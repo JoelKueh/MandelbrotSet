@@ -1,5 +1,8 @@
 #include "MyDirectX.h"
 
+#include <Debugapi.h>
+#include <string>
+
 MyDirectX::MyDirectX()
 {
 
@@ -7,209 +10,212 @@ MyDirectX::MyDirectX()
 
 VOID MyDirectX::Draw()
 {
-// Input-Assembler Stage.
-    // No Buffer is made because we are only dealing with one possible rendering face, a triangle-strip / rectangle with vertices on the four corners of the screen.
+	/* clear the back buffer to cornflower blue for the new frame */
+	float background_colour[4] = {
+	  0.0f, 0.0f, 0.0f, 1.0f };
+	g_dx.deviceContext->ClearRenderTargetView(
+		g_dx.renderTargetView, background_colour);
 
+	D3D11_VIEWPORT viewport = {
+	  0.0f,
+	  0.0f,
+	  g_dx.width,
+	  g_dx.height,
+	  0.0f,
+	  1.0f };
+	g_dx.deviceContext->RSSetViewports(1, &viewport);
 
-// Vertex Shader Stage
+	g_dx.deviceContext->OMSetRenderTargets(1, &g_dx.renderTargetView, NULL);
 
-// Compute Shatder Stage, writes to a texture that can hopefully be accessed later when we need to map it to our vertices.
-// Remove this in place of a pixel shader that directly calculates pixel color, rather than using this texture to map to the pixels.
-    //g_dx.deviceContext->CSSetShader(g_dx.computeShader, nullptr, 0);
-    //g_dx.deviceContext->CSSetShaderResources(0, 1, &g_dx.shaderResourceView);
-    //g_dx.deviceContext->Dispatch(1920, 1080, 1);
+	g_dx.deviceContext->IASetPrimitiveTopology(
+		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	g_dx.deviceContext->IASetInputLayout(g_dx.inputLayout);
+	g_dx.deviceContext->IASetVertexBuffers(
+		0,
+		1,
+		&g_dx.vertexBuffer,
+		&g_dx.vertexStride,
+		&g_dx.vertexOffset);
 
-    //ID3D11ShaderResourceView* nullSRV[] = { NULL };
-    //g_dx.deviceContext->CSSetShaderResources(0, 1, nullSRV);
+	g_dx.deviceContext->VSSetShader(g_dx.vs, NULL, 0);
+	g_dx.deviceContext->PSSetShader(g_dx.ps, NULL, 0);
 
-    //// Unbind output from compute shader
-    //ID3D11UnorderedAccessView* nullUAV[] = { NULL };
-    //g_dx.deviceContext->CSSetUnorderedAccessViews(0, 1, nullUAV, 0);
+	g_dx.deviceContext->Draw(g_dx.vertexCount, 0);
 
-    //// Disable Compute Shader
-    //g_dx.deviceContext->CSSetShader(nullptr, nullptr, 0);
-
-// 
+	g_dx.swapChain->Present(1, 0);
 }
 
 VOID MyDirectX::InitDirectX(HWND hWnd)
 {
-// Outside Initialization
-    InitDevice(hWnd);
-    //CompileShaders();
-// Input-Assembler Initialization
-    CreateVertexBuffer();
+	InitDevice(hWnd);
+	InitTargetView();
+	CompileShaders();
+	InitVertexBuffer();
 }
 
 VOID MyDirectX::FreeDirectX()
 {
-    g_dx.vertexLayout->Release();
-    g_dx.swapChain->Release();
-    g_dx.shaderResourceView->Release();
-    g_dx.deviceContext->Release();
-    g_dx.tex->Release();
-    g_dx.computeShader->Release();
-    g_dx.device->Release();
+
 }
 
-HRESULT MyDirectX::CreateVertexBuffer()
+VOID MyDirectX::InitDevice(HWND hWnd)
 {
-    D3D11_BUFFER_DESC bufferDesc;
-    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    bufferDesc.ByteWidth = sizeof(simpleVertex) * 3;
-    bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bufferDesc.CPUAccessFlags = 0;
-    bufferDesc.MiscFlags = 0;
+	// Create a rectangle to contain a couple parameters about the user window
+	RECT rect;
+	GetClientRect(hWnd, &rect);
+	g_dx.width = (float)(rect.right - rect.left);
+	g_dx.height = (float)(rect.bottom - rect.top);
 
-    D3D11_SUBRESOURCE_DATA InitData;
-    InitData.pSysMem = g_dx.vertices;
-    InitData.SysMemPitch = 0;
-    InitData.SysMemSlicePitch = 0;
-    HRESULT hr = g_dx.device->CreateBuffer(&bufferDesc, &InitData, &g_dx.vertexBuffer);
-    return hr;
-}
+	OutputDebugStringA(std::to_string(g_dx.width).c_str());
 
-HRESULT MyDirectX::InitDevice(HWND hWnd)
-{
-// Outside of the Pipeline
-    // Get the rectangle that contians the window, use it's 
-    RECT rc;
-    GetClientRect(hWnd, &rc);
-    g_dx.width = rc.right - rc.left;
-    g_dx.height = rc.bottom - rc.top;
+	DXGI_SWAP_CHAIN_DESC sd;
+	ZeroMemory(&sd, sizeof(sd));
+	sd.BufferDesc.Width = g_dx.width;
+	sd.BufferDesc.Height = g_dx.height;
+	sd.BufferDesc.RefreshRate.Numerator = 0; // Just render the frame as fast as possible
+	sd.BufferDesc.RefreshRate.Denominator = 1;
+	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Use R8G8B8A8 color format
+	sd.SampleDesc.Count = 1;
+	sd.SampleDesc.Quality = 0;
+	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd.BufferCount = 1;
+	sd.OutputWindow = hWnd;
+	sd.Windowed = true; // Call IDXGI::SetFullscreenState to change
 
-    UINT createDeviceFlags = 0;
-#ifdef _DEBUG
-    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-    // Create a description object which will be passed into a create object function that will set pointers to other newly initialized objects.
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 1;
-    sd.BufferDesc.Width = g_dx.width;
-    sd.BufferDesc.Height = g_dx.height;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 0;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = hWnd;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
 
-    HRESULT hr = S_OK;
+	// Create an array of featureLevels to be tested in the D3D11CreateDeviceAndSwapChain Function
+	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 
-    // Attempts to create a device and swap chain on the highest level of hardware acceleration.
-    hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags,
-        NULL, 0, D3D11_SDK_VERSION, &sd, &g_dx.swapChain,
-        &g_dx.device, NULL, &g_dx.deviceContext);
-    if (FAILED(hr))
-    {
-        // If failed, try without antialiasing
-        sd.SampleDesc.Count = 1; // Check this line if buggy!!!
-        hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags,
-            NULL, 0, D3D11_SDK_VERSION, &sd, &g_dx.swapChain,
-            &g_dx.device, NULL, &g_dx.deviceContext);
-        if (FAILED(hr))
-        {
-            // If failed, try to create a reference device
-            hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_REFERENCE, NULL, createDeviceFlags,
-                NULL, 0, D3D11_SDK_VERSION, &sd, &g_dx.swapChain,
-                &g_dx.device, NULL, &g_dx.deviceContext);
-            if (SUCCEEDED(hr))
-                MessageBox(hWnd, L"No DX11 hardware acceleration found.\nSwitching to REFERENCE driver (very slow).",
-                    L"Warning", MB_OK | MB_ICONWARNING);
-            else
-                return hr;
-        }
-    }
-}
-
-HRESULT MyDirectX::CompileShaders()
-{
-// Compile the Vertex Shader
-
-// Compile the Pixel Shader
-
-// Compile the ComputeShader
-    ID3DBlob* csBlob = nullptr;
-    HRESULT hr = CompileComputeShader(L"ComputeShader.hlsl", "main", g_dx.device, &csBlob);
-    if (FAILED(hr))
-    {
-        g_dx.device->Release();
-        return -1;
-    }
-
-    // Create The ComputeShader
-    hr = g_dx.device->CreateComputeShader(csBlob->GetBufferPointer(), csBlob->GetBufferSize(), nullptr, &g_dx.computeShader);
-
-    csBlob->Release();
-
-    if (FAILED(hr))
-    {
-        g_dx.device->Release();
-    }
-
-    // Create Output Buffers for the ComputeShader to write to.
-    D3D11_TEXTURE2D_DESC textureDesc;
-    ZeroMemory(&textureDesc, sizeof(textureDesc));
-    textureDesc.Width = g_dx.width;
-    textureDesc.Height = g_dx.height;
-    textureDesc.MipLevels = 1;
-    textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-    textureDesc.SampleDesc.Count = 1;
-    textureDesc.SampleDesc.Quality = 0;
-    textureDesc.Usage = D3D11_USAGE_DEFAULT;
-    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    textureDesc.CPUAccessFlags = 0;
-    textureDesc.MiscFlags = 0;
-    hr = g_dx.device->CreateTexture2D(&textureDesc, 0, &g_dx.tex);
-    g_dx.device->CreateShaderResourceView(g_dx.tex, NULL, &g_dx.shaderResourceView);
-}
-
-HRESULT MyDirectX::CompileComputeShader(_In_ LPCWSTR srcFile, _In_ LPCSTR entryPoint,
-    _In_ ID3D11Device* device, _Outptr_ ID3DBlob** blob)
-{
-    if (!srcFile || !entryPoint || !device || !blob)
-        return E_INVALIDARG;
-
-    *blob = nullptr;
-
-    UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+	// Plan for single threading, then tack on a debug flag if it is defined.
+	UINT flags = D3D11_CREATE_DEVICE_SINGLETHREADED;
 #if defined( DEBUG ) || defined( _DEBUG )
-    flags |= D3DCOMPILE_DEBUG;
+	flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-    // We generally prefer to use the higher CS shader profile when possible as CS 5.0 is better performance on 11-class hardware
-    LPCSTR profile = "cs_5_0";
+	HRESULT hr = D3D11CreateDeviceAndSwapChain(
+		NULL, // Using the defualt adapter
+		D3D_DRIVER_TYPE_HARDWARE, // Using hardware accelleration
+		NULL, // Set NULL because we are not using D3D_DRIVER_TYPE_HARDWARE above
+		flags, // Use a singlethreaded device because we won't be calling the functions across threads. Then use debug mode if it is installed.
+		&featureLevel, // Use the 11.0 feature level version.
+		1, // Specify that there is one item in the array of feature levels
+		D3D11_SDK_VERSION, // This is what I was told to do by the Windows Documentation
+		&sd, // Pass in the swap chain description that we created above
+		&g_dx.swapChain, // Pass in a reference to a pointer, so that the function can direct us to a new object.
+		&g_dx.device,
+		NULL, // We don't need to determine which feature level we created.
+		&g_dx.deviceContext
+	);
+	assert(S_OK == hr && g_dx.swapChain && g_dx.device && g_dx.deviceContext && "Device or Swap Chain Initialization Failed"); // Checking to see if everything worked
+}
 
-    const D3D_SHADER_MACRO defines[] =
-    {
-        "EXAMPLE_DEFINE", "1",
-        NULL, NULL
-    };
+VOID MyDirectX::InitTargetView()
+{
+	ID3D11Texture2D* framebuffer;
+	HRESULT hr = g_dx.swapChain->GetBuffer(
+		0,
+		__uuidof(ID3D11Texture2D),
+		(void**)&framebuffer);
+	assert(SUCCEEDED(hr) && "Frame Buffer Initialization Failed");
 
-    ID3DBlob* shaderBlob = nullptr;
-    ID3DBlob* errorBlob = nullptr;
-    HRESULT hr = D3DCompileFromFile(srcFile, defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-        entryPoint, "cs_5_0",
-        flags, 0, &shaderBlob, &errorBlob);
-    if (FAILED(hr))
-    {
-        if (errorBlob)
-        {
-            OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-            errorBlob->Release();
-        }
+	hr = g_dx.device->CreateRenderTargetView(
+		framebuffer, 0, &g_dx.renderTargetView);
+	assert(SUCCEEDED(hr) && "Render Target View Initialization Failed");
+	framebuffer->Release();
+}
 
-        if (shaderBlob)
-            shaderBlob->Release();
+VOID MyDirectX::CompileShaders()
+{
+	UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined( DEBUG ) || defined( _DEBUG )
+	flags |= D3DCOMPILE_DEBUG; // add more debug output
+#endif
+	ID3DBlob* vs_blob_ptr = NULL, * ps_blob_ptr = NULL, * error_blob = NULL;
 
-        return hr;
-    }
+	// COMPILE VERTEX SHADER
+	HRESULT hr = D3DCompileFromFile(
+		L"VertexShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"main",
+		"vs_5_0",
+		flags,
+		0,
+		&vs_blob_ptr,
+		&error_blob
+	);
+	if (FAILED(hr)) {
+		if (error_blob) {
+			OutputDebugStringA((char*)error_blob->GetBufferPointer());
+			error_blob->Release();
+		}
+		if (vs_blob_ptr) { vs_blob_ptr->Release(); }
+		assert(false && "Vertex Shader Compilation Failed");
+	}
 
-    *blob = shaderBlob;
+	// COMPILE PIXEL SHADER
+	hr = D3DCompileFromFile(
+		L"PixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"main",
+		"ps_5_0",
+		flags,
+		0,
+		&ps_blob_ptr,
+		&error_blob
+	);
+	if (FAILED(hr)) {
+		if (error_blob) {
+			OutputDebugStringA((char*)error_blob->GetBufferPointer());
+			error_blob->Release();
+		}
+		if (ps_blob_ptr) { ps_blob_ptr->Release(); }
+		assert(false && "Pixel Shader Compilation Failed");
+	}
 
-    return hr;
+	hr = g_dx.device->CreateVertexShader(
+		vs_blob_ptr->GetBufferPointer(),
+		vs_blob_ptr->GetBufferSize(),
+		NULL,
+		&g_dx.vs
+	);
+	assert(SUCCEEDED(hr) && "Vertex Shader Creation Failed");
+
+	hr = g_dx.device->CreatePixelShader(
+		ps_blob_ptr->GetBufferPointer(),
+		ps_blob_ptr->GetBufferSize(),
+		NULL,
+		&g_dx.ps
+	);
+	assert(SUCCEEDED(hr) && "Pixel Shader Creation Failed");
+
+	// InputLayoutCreation - Uses vs_blob_ptr from above
+	D3D11_INPUT_ELEMENT_DESC inputElementDesc[] = {
+	  { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	hr = g_dx.device->CreateInputLayout(
+		inputElementDesc,
+		ARRAYSIZE(inputElementDesc),
+		vs_blob_ptr->GetBufferPointer(),
+		vs_blob_ptr->GetBufferSize(),
+		&g_dx.inputLayout
+	);
+	assert(SUCCEEDED(hr) && "Input Layout Creation Failed");
+}
+
+VOID MyDirectX::InitVertexBuffer()
+{
+	/*** load mesh data into vertex buffer **/
+	D3D11_BUFFER_DESC vertex_buff_descr = {};
+	vertex_buff_descr.ByteWidth = sizeof(g_dx.vertexArray);
+	vertex_buff_descr.Usage = D3D11_USAGE_DEFAULT;
+	vertex_buff_descr.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	D3D11_SUBRESOURCE_DATA sr_data = { 0 };
+	sr_data.pSysMem = g_dx.vertexArray;
+	HRESULT hr = g_dx.device->CreateBuffer(
+		&vertex_buff_descr,
+		&sr_data,
+		&g_dx.vertexBuffer);
+	assert(SUCCEEDED(hr) && "Vertex Buffer Creation Failed");
 }

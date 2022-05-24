@@ -11,6 +11,8 @@
 
 #define MAX_LOADSTRING 100
 
+MyDirectX m_dx;
+
 int redVal = 255;
 
 // Global Variables:
@@ -26,7 +28,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 void OnPaint(HDC hdc)
 {
-
+    m_dx.Draw();
 }
 
 // This is the entry to the program. APIENTRY is short for WINAPI, and wWinMain is just WinMain that takes an input of a wchar rather than a char
@@ -128,6 +130,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       // Stop trying to show the window if window creation didn't work.
       return FALSE;
    }
+
+   // Run our code to initialize DirectX.
+   m_dx.InitDirectX(hWnd);
 
    // Show the window that we just created.
    ShowWindow(hWnd, nCmdShow);
