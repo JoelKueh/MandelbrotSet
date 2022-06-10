@@ -49,6 +49,8 @@ private:
 	VOID InitTargetView();
 	VOID CompileShaders();
 	VOID InitVertexBuffer();
+	VOID InitCSOutput();
+	VOID InitCSInput();
 
 	struct dxData
 	{
@@ -59,6 +61,10 @@ private:
 		ID3D11RenderTargetView* renderTargetView = NULL;
 		ID3D11InputLayout* inputLayout = NULL;
 
+		ID3D11Texture2D* csOutput = NULL;
+		ID3D11Buffer* csInput = NULL;
+
+		ID3D11ComputeShader* cs = NULL;
 		ID3D11VertexShader* vs = NULL;
 		ID3D11PixelShader* ps = NULL;
 

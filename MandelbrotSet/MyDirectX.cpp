@@ -10,12 +10,13 @@ MyDirectX::MyDirectX()
 
 VOID MyDirectX::Draw()
 {
-	/* clear the back buffer to cornflower blue for the new frame */
+	// Clear the back buffer and set it to white to prepare for the next frame
 	float background_colour[4] = {
 	  0.0f, 0.0f, 0.0f, 1.0f };
 	g_dx.deviceContext->ClearRenderTargetView(
 		g_dx.renderTargetView, background_colour);
 
+	// Basically, the dimensions of the frame the is being displayed.
 	D3D11_VIEWPORT viewport = {
 	  0.0f,
 	  0.0f,
@@ -25,8 +26,10 @@ VOID MyDirectX::Draw()
 	  1.0f };
 	g_dx.deviceContext->RSSetViewports(1, &viewport);
 
+	// Allows us to render to the back buffer rather than the screen.
 	g_dx.deviceContext->OMSetRenderTargets(1, &g_dx.renderTargetView, NULL);
 
+	// Feeds in the vertex buffer with the specification that it it a trainglestrip, built in a certain order listed in the documentation.
 	g_dx.deviceContext->IASetPrimitiveTopology(
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	g_dx.deviceContext->IASetInputLayout(g_dx.inputLayout);
@@ -37,11 +40,15 @@ VOID MyDirectX::Draw()
 		&g_dx.vertexStride,
 		&g_dx.vertexOffset);
 
+	// Sends in the vertex and pixel shaders.
+	g_dx.deviceContext->CSSetShader(g_dx.cs, NULL, 0);
 	g_dx.deviceContext->VSSetShader(g_dx.vs, NULL, 0);
 	g_dx.deviceContext->PSSetShader(g_dx.ps, NULL, 0);
 
+	// Uses the shaders to draw to the buffer.
 	g_dx.deviceContext->Draw(g_dx.vertexCount, 0);
 
+	// Flips the buffer with the image that is on the screen.
 	g_dx.swapChain->Present(1, 0);
 }
 
@@ -50,6 +57,7 @@ VOID MyDirectX::InitDirectX(HWND hWnd)
 	InitDevice(hWnd);
 	InitTargetView();
 	CompileShaders();
+	InitCSOutput();
 	InitVertexBuffer();
 }
 
@@ -130,7 +138,7 @@ VOID MyDirectX::CompileShaders()
 #if defined( DEBUG ) || defined( _DEBUG )
 	flags |= D3DCOMPILE_DEBUG; // add more debug output
 #endif
-	ID3DBlob* vs_blob_ptr = NULL, * ps_blob_ptr = NULL, * error_blob = NULL;
+	ID3DBlob* vs_blob_ptr = NULL, * ps_blob_ptr = NULL, * cs_blob_ptr = NULL, * error_blob = NULL;
 
 	// COMPILE VERTEX SHADER
 	HRESULT hr = D3DCompileFromFile(
@@ -142,6 +150,27 @@ VOID MyDirectX::CompileShaders()
 		flags,
 		0,
 		&vs_blob_ptr,
+		&error_blob
+	);
+	if (FAILED(hr)) {
+		if (error_blob) {
+			OutputDebugStringA((char*)error_blob->GetBufferPointer());
+			error_blob->Release();
+		}
+		if (vs_blob_ptr) { vs_blob_ptr->Release(); }
+		assert(false && "Vertex Shader Compilation Failed");
+	}
+
+	// COMPILE COMPUTE SHADER
+	hr = D3DCompileFromFile(
+		L"ComputeShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"main",
+		"cs_5_0",
+		flags,
+		0,
+		&cs_blob_ptr,
 		&error_blob
 	);
 	if (FAILED(hr)) {
@@ -173,6 +202,14 @@ VOID MyDirectX::CompileShaders()
 		if (ps_blob_ptr) { ps_blob_ptr->Release(); }
 		assert(false && "Pixel Shader Compilation Failed");
 	}
+
+	hr = g_dx.device->CreateComputeShader(
+		cs_blob_ptr->GetBufferPointer(),
+		cs_blob_ptr->GetBufferSize(),
+		NULL,
+		&g_dx.cs
+	);
+	assert(SUCCEEDED(hr) && "Compute Shader Creation Failed");
 
 	hr = g_dx.device->CreateVertexShader(
 		vs_blob_ptr->GetBufferPointer(),
@@ -218,4 +255,44 @@ VOID MyDirectX::InitVertexBuffer()
 		&sr_data,
 		&g_dx.vertexBuffer);
 	assert(SUCCEEDED(hr) && "Vertex Buffer Creation Failed");
+}
+
+VOID MyDirectX::InitCSOutput()
+{
+	D3D11_TEXTURE2D_DESC texDesc;
+	ZeroMemory(&texDesc, sizeof(texDesc));
+	texDesc.Width = g_dx.width;
+	texDesc.Height = g_dx.height;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// TEST THIS FOR SOME QUALITY STUFF
+	texDesc.SampleDesc.Count = 2;
+	texDesc.SampleDesc.Quality = 2;
+
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+	texDesc.CPUAccessFlags = 0;
+
+	HRESULT hr = g_dx.device->CreateTexture2D(
+		&texDesc,
+		NULL,
+		&g_dx.csOutput);
+	assert(SUCCEEDED(hr) && "CSOutput Creation Failed");
+}
+
+VOID MyDirectX::InitCSInput()
+{
+	D3D11_BUFFER_DESC constBufferDesc;
+	ZeroMemory(&constBufferDesc, sizeof(constBufferDesc));
+	constBufferDesc.ByteWidth = sizeof(double);
+	constBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	constBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+	HRESULT hr = g_dx.device->CreateBuffer(
+		&constBufferDesc,
+		NULL,
+		&g_dx.csInput);
+	assert(SUCCEEDED(hr) && "CSInput Creation Failed");
 }
