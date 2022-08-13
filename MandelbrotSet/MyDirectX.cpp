@@ -10,7 +10,7 @@ MyDirectX::MyDirectX()
 
 VOID MyDirectX::Draw()
 {
-	// Clear the back buffer and set it to white to prepare for the next frame
+	// Clear the back buffer and set it to black to prepare for the next frame
 	float background_colour[4] = {
 	  0.0f, 0.0f, 0.0f, 1.0f };
 	g_dx.deviceContext->ClearRenderTargetView(
@@ -42,6 +42,8 @@ VOID MyDirectX::Draw()
 
 	// Sends in the vertex and pixel shaders.
 	g_dx.deviceContext->CSSetShader(g_dx.cs, NULL, 0);
+	g_dx.deviceContext->CSSetConstantBuffers(0, 1, &g_dx.csInput);
+	g_dx.deviceContext->CSSetShaderResources(0, 1, &g_dx.csOutput);
 	g_dx.deviceContext->VSSetShader(g_dx.vs, NULL, 0);
 	g_dx.deviceContext->PSSetShader(g_dx.ps, NULL, 0);
 
@@ -179,7 +181,7 @@ VOID MyDirectX::CompileShaders()
 			error_blob->Release();
 		}
 		if (vs_blob_ptr) { vs_blob_ptr->Release(); }
-		assert(false && "Vertex Shader Compilation Failed");
+		assert(false && "Compute Shader Compilation Failed");
 	}
 
 	// COMPILE PIXEL SHADER

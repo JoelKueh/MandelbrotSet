@@ -1,6 +1,4 @@
-[numthreads(1, 1, 1)]
-
-cbuffer Input : register (b0)
+cbuffer Inputs : register (b0)
 {
 	double topLeftX;
 	double topLeftY;
@@ -11,6 +9,8 @@ cbuffer Input : register (b0)
 };
 
 Texture2D tex : register(u0)
+
+[numthreads(1, 1, 1)]
 
 double2 cmplxSquare(double2 input)
 {
