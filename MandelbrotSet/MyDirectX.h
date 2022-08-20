@@ -5,7 +5,7 @@
 // DirectX Header Files
 #include <DirectXMath.h>
 using namespace DirectX;
-#include <d3d11.h>
+#include <d3d11_4.h>
 #include <d3dcompiler.h>
 #include <dxgi.h>
 //#include <d3d11_1.h>
@@ -43,26 +43,34 @@ public:
 	VOID InitDirectX(HWND hWnd);
 	VOID FreeDirectX();
 
+	VOID ResizeDevices(HWND hWnd);
+
 private:
 
-	VOID InitDevice(HWND hWnd);
-	VOID InitTargetView();
-	VOID CompileShaders();
-	VOID InitVertexBuffer();
-	VOID InitCSOutput();
-	VOID InitCSInput();
+	__declspec(align(32)) struct ConstBufferData {
+		float centerX;
+		float centerY;
+		float width;
+		float windWidth;
+		float windHeight;
+	};
+
+	UINT syncCounter = 0;
 
 	struct dxData
 	{
-		ID3D11Device* device = NULL;
-		ID3D11DeviceContext* deviceContext = NULL;
+		ID3D11Device5* device = NULL;
+		ID3D11DeviceContext4* deviceContext = NULL;
 		IDXGISwapChain* swapChain = NULL;
 
 		ID3D11RenderTargetView* renderTargetView = NULL;
 		ID3D11InputLayout* inputLayout = NULL;
 
 		ID3D11Texture2D* csOutput = NULL;
+		ID3D11UnorderedAccessView* csOutputViewRW = NULL;
+		ID3D11ShaderResourceView* csOutputViewR = NULL;
 		ID3D11Buffer* csInput = NULL;
+		ID3D11Fence* fence = NULL;
 
 		ID3D11ComputeShader* cs = NULL;
 		ID3D11VertexShader* vs = NULL;
@@ -79,9 +87,23 @@ private:
 		UINT vertexOffset = 0;
 		UINT vertexCount = 4;
 
-		float width = 0;
-		float height = 0;
+		UINT width = 0;
+		UINT height = 0;
+
+		ConstBufferData constBufferCPU;
 	};
 	dxData g_dx;
-};
 
+	VOID InitDevice(HWND hWnd);
+	VOID InitTargetView();
+	VOID CompileShaders();
+	VOID InitVertexBuffer();
+	VOID InitCSOutputResource();
+	VOID InitCSOutputView();
+	VOID InitPSInputView();
+	VOID InitCSInput();
+	VOID InitFence();
+
+	VOID FlushConstantBuffer();
+	VOID RecreateCSOutput();
+};
