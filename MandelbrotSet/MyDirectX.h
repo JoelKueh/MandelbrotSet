@@ -53,8 +53,10 @@ private:
 		float width;
 		float windWidth;
 		float windHeight;
+		float ssLvl;
 	};
 
+	UINT ssLvl = 4;
 	UINT syncCounter = 0;
 
 	struct dxData

@@ -5,6 +5,7 @@ cbuffer Inputs : register (b0)
 	float width;
 	float windWidth;
 	float windHeight;
+	float ssLvl;
 };
 
 RWTexture2D<unorm float4> tex : register(u0);
@@ -42,12 +43,16 @@ float4 colorizer(int iterations)
 	return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
-[numthreads(4, 4, 1)]
+[numthreads(16, 16, 1)]
 void main( uint3 DTid : SV_DispatchThreadID )
 {
 	double2 c;
-	double texWidth = windWidth * 4;
-	double texHeight = windHeight * 4;
+	double texWidth = windWidth * ssLvl;
+	double texHeight = windHeight * ssLvl;
+
+	// Don't do mandelbrot calculation if we are outside of the window.
+	if (DTid.x > texWidth) return;
+	if (DTid.y > texHeight) return;
 
 	float scaleFactor = width / texWidth;
 	float halfwayPixelW = texWidth / 2;

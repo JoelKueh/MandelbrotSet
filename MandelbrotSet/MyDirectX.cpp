@@ -41,7 +41,7 @@ VOID MyDirectX::Draw()
 	g_dx.deviceContext->CSSetConstantBuffers(0, 1, &g_dx.csInput);
 	g_dx.deviceContext->CSSetUnorderedAccessViews(0, 1, &g_dx.csOutputViewRW, 0);
 
-	g_dx.deviceContext->Dispatch(g_dx.width, g_dx.height, 1);
+	g_dx.deviceContext->Dispatch(g_dx.width / 16 * ssLvl + 16, g_dx.height / 16 * ssLvl + 16, 1);
 
 	// Debind the UAV from the compute shader
 	ID3D11UnorderedAccessView* nullUAV = { nullptr };
@@ -52,6 +52,7 @@ VOID MyDirectX::Draw()
 
 	g_dx.deviceContext->PSSetShader(g_dx.ps, NULL, 0);
 	g_dx.deviceContext->PSSetShaderResources(0, 1, &g_dx.csOutputViewR);
+	g_dx.deviceContext->PSSetConstantBuffers(0, 1, &g_dx.csInput);
 
 
 	// Uses the shaders to draw to the buffer.
@@ -286,8 +287,8 @@ VOID MyDirectX::InitCSOutputResource()
 {
 	D3D11_TEXTURE2D_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(texDesc));
-	texDesc.Width = g_dx.width * 4;
-	texDesc.Height = g_dx.height * 4;
+	texDesc.Width = g_dx.width * ssLvl;
+	texDesc.Height = g_dx.height * ssLvl;
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
 	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -344,6 +345,7 @@ VOID MyDirectX::InitCSInput()
 	g_dx.constBufferCPU.width = 5.0;
 	g_dx.constBufferCPU.windWidth = g_dx.width;
 	g_dx.constBufferCPU.windHeight = g_dx.height;
+	g_dx.constBufferCPU.ssLvl = ssLvl;
 
 	D3D11_SUBRESOURCE_DATA cBuffInitData;
 	ZeroMemory(&cBuffInitData, sizeof(cBuffInitData));

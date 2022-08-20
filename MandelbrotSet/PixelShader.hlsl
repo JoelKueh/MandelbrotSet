@@ -1,17 +1,26 @@
+cbuffer Inputs : register (b0)
+{
+	float centerX;
+	float centerY;
+	float width;
+	float windWidth;
+	float windHeight;
+	float ssLvl;
+};
+
 Texture2D<unorm float4> tex : register (t0);
 
 unorm float4 main(float4 pixelPos : SV_Position) : SV_TARGET
 {
-	int texScale = 4;
 	float4 output;
-	for (int row = 0; row < texScale; row++)
+	for (int row = 0; row < ssLvl; row++)
 	{
-		for (int col = 0; col < texScale; col++)
+		for (int col = 0; col < ssLvl; col++)
 		{
-			int3 coords = { pixelPos.x * texScale + row, pixelPos.y * texScale + col, 0 };
+			int3 coords = { pixelPos.x * ssLvl + row, pixelPos.y * ssLvl + col, 0 };
 			output += tex.Load(coords);
 		}
 	}
-	output /= texScale * texScale;
+	output /= ssLvl * ssLvl;
 	return output;
 }
