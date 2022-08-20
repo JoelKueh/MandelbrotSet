@@ -14,6 +14,7 @@
 MyDirectX m_dx;
 
 int redVal = 255;
+bool mandelbrotDrawReady = true;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -29,6 +30,11 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void OnPaint(HDC hdc)
 {
     m_dx.Draw();
+}
+
+void UpdateMandelbrotBuffer(HWND hWnd)
+{
+    m_dx.ResizeDevices(hWnd);
 }
 
 // This is the entry to the program. APIENTRY is short for WINAPI, and wWinMain is just WinMain that takes an input of a wchar rather than a char
@@ -124,6 +130,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    // Creates the actual window itself.
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+   SetMenu(hWnd, NULL);
 
    if (!hWnd)
    {
@@ -177,13 +184,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-            OnPaint(hdc);
+            if (mandelbrotDrawReady)
+            {
+                OnPaint(hdc);
+                mandelbrotDrawReady = false;
+            }
             EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+    case WM_EXITSIZEMOVE:
+        {
+            mandelbrotDrawReady = true;
+            UpdateMandelbrotBuffer(hWnd);
+            RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+    case WM_SYSCHAR:
+        {
+            mandelbrotDrawReady = true;
+            UpdateMandelbrotBuffer(hWnd);
+            RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
