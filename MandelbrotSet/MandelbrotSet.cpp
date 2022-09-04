@@ -16,6 +16,8 @@ MyDirectX m_dx;
 int redVal = 255;
 bool mandelbrotDrawReady = true;
 
+RECT selectedRect = { 0 };
+
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text (Used to create the window in InitInstance())
@@ -35,6 +37,33 @@ void OnPaint(HDC hdc)
 void UpdateMandelbrotBuffer(HWND hWnd)
 {
     m_dx.ResizeDevices(hWnd);
+}
+
+void HandleMouseLeftDown(LPARAM input)
+{
+    int xPos = GET_X_LPARAM(input);
+    int yPos = GET_Y_LPARAM(input);
+
+    selectedRect.top = yPos;
+    selectedRect.left = xPos;
+}
+
+void HandleMouseLeftHold(LPARAM input)
+{
+    int xPos = GET_X_LPARAM(input);
+    int yPos = GET_Y_LPARAM(input);
+
+    selectedRect.bottom = yPos;
+    selectedRect.right = xPos;
+}
+
+void HandleMouseLeftUp(LPARAM input)
+{
+    int xPos = GET_X_LPARAM(input);
+    int yPos = GET_Y_LPARAM(input);
+
+    selectedRect.bottom = yPos;
+    selectedRect.right = xPos;
 }
 
 // This is the entry to the program. APIENTRY is short for WINAPI, and wWinMain is just WinMain that takes an input of a wchar rather than a char
@@ -164,49 +193,61 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_COMMAND:
+    {
+        int wmId = LOWORD(wParam);
+        // Parse the menu selections:
+        switch (wmId)
         {
-            int wmId = LOWORD(wParam);
-            // Parse the menu selections:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
+        case IDM_ABOUT:
+            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+            break;
+        case IDM_EXIT:
+            DestroyWindow(hWnd);
+            break;
+        default:
+            return DefWindowProc(hWnd, message, wParam, lParam);
         }
-        break;
+    }
+    break;
     case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        if (mandelbrotDrawReady)
         {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            if (mandelbrotDrawReady)
-            {
-                OnPaint(hdc);
-                mandelbrotDrawReady = false;
-            }
-            EndPaint(hWnd, &ps);
+            OnPaint(hdc);
+            mandelbrotDrawReady = false;
         }
-        break;
+        EndPaint(hWnd, &ps);
+    }
+    break;
+    case WM_LBUTTONDOWN:
+    {
+        HandleMouseLeftDown(lParam);
+    }
+    break;
+    case WM_LBUTTONUP:
+    {
+        HandleMouseLeftUp(lParam);
+    }
+    break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
     case WM_EXITSIZEMOVE:
-        {
-            mandelbrotDrawReady = true;
-            UpdateMandelbrotBuffer(hWnd);
-            RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-        }
+    {
+        mandelbrotDrawReady = true;
+        UpdateMandelbrotBuffer(hWnd);
+        RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+    break;
     case WM_SYSCHAR:
-        {
-            mandelbrotDrawReady = true;
-            UpdateMandelbrotBuffer(hWnd);
-            RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-        }
+    {
+        mandelbrotDrawReady = true;
+        UpdateMandelbrotBuffer(hWnd);
+        RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+    break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }

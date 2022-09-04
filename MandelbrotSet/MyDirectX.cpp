@@ -283,6 +283,7 @@ VOID MyDirectX::InitVertexBuffer()
 	assert(SUCCEEDED(hr) && "Vertex Buffer Creation Failed");
 }
 
+// Switch to BC4 Version of texture for smaller memory footprint
 VOID MyDirectX::InitCSOutputResource()
 {
 	D3D11_TEXTURE2D_DESC texDesc;
