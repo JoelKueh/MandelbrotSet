@@ -43,6 +43,8 @@ public:
 	VOID InitDirectX(HWND hWnd);
 	VOID FreeDirectX();
 
+	VOID ComputeNextLevel();
+
 	VOID ResizeDevices(HWND hWnd);
 
 private:
@@ -69,8 +71,9 @@ private:
 		ID3D11InputLayout* inputLayout = NULL;
 
 		ID3D11Texture2D* csOutput = NULL;
-		ID3D11UnorderedAccessView* csOutputViewRW = NULL;
-		ID3D11ShaderResourceView* csOutputViewR = NULL;
+		ID3D11Texture2D* psInput = NULL;
+		ID3D11UnorderedAccessView* csOutputView = NULL;
+		ID3D11ShaderResourceView* psInputView = NULL;
 		ID3D11Buffer* csInput = NULL;
 		ID3D11Fence* fence = NULL;
 
@@ -95,12 +98,19 @@ private:
 		ConstBufferData constBufferCPU;
 	};
 	dxData g_dx;
+	
+	// Compute Levels
+	VOID ComputeLvlOne();
+	VOID ComputeLvlTwo();
+	VOID ComputeLvlThree();
 
 	VOID InitDevice(HWND hWnd);
 	VOID InitTargetView();
+	VOID SetViewport();
 	VOID CompileShaders();
 	VOID InitVertexBuffer();
-	VOID InitCSOutputResource();
+	VOID InitCSOutput();
+	VOID InitPSInput();
 	VOID InitCSOutputView();
 	VOID InitPSInputView();
 	VOID InitCSInput();

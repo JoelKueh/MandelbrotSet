@@ -3,43 +3,42 @@
 #include <Debugapi.h>
 #include <string>
 
+// DEBUG
+#include <chrono>
+#include <thread>
+
+/*
+	TODO:
+		1. Switch from Block Compression texture formats rather than float4 texture formats. -- NOT POSSIBLE Block Compression fomats cannot be written to
+		2. Separate device into Copy, Compute, and Render Engines -- DirectX12 only feature
+		3. Time Compute Shader at 8k
+		4. Check responsiveness when compute shader is running constantly.
+			a. Check responsiveness of other apps.
+			b. Check if PC can use the render engine while the compute shader is running.
+		5. If 4 yeilds undesirable results, find way to tune back the performance draw.
+		6. Split Compute Shader output buffer and PS Input buffer.
+			a. Signal the Copy Engine to copy the 
+*/
+
 MyDirectX::MyDirectX() = default;
+
+/*************************************************
+ *
+ *	Drawing
+ * 
+*************************************************/
 
 VOID MyDirectX::Draw()
 {
 	// Clear the back buffer and set it to black to prepare for the next frame
-	float background_colour[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
+	float background_colour[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	g_dx.deviceContext->ClearRenderTargetView(
 		g_dx.renderTargetView, background_colour);
-
-	// Basically, the dimensions of the frame the is being displayed.
-	D3D11_VIEWPORT viewport = {
-	  0.0f,
-	  0.0f,
-	  g_dx.width,
-	  g_dx.height,
-	  0.0f,
-	  1.0f };
-	g_dx.deviceContext->RSSetViewports(1, &viewport);
-
-	// Allows us to render to the back buffer rather than the screen.
-	g_dx.deviceContext->OMSetRenderTargets(1, &g_dx.renderTargetView, NULL);
-
-	// Feeds in the vertex buffer with the specification that it it a trainglestrip, built in a certain order listed in the documentation.
-	g_dx.deviceContext->IASetPrimitiveTopology(
-		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	g_dx.deviceContext->IASetInputLayout(g_dx.inputLayout);
-	g_dx.deviceContext->IASetVertexBuffers(
-		0,
-		1,
-		&g_dx.vertexBuffer,
-		&g_dx.vertexStride,
-		&g_dx.vertexOffset);
 
 	// Prep the Compute Shader
 	g_dx.deviceContext->CSSetShader(g_dx.cs, NULL, 0);
 	g_dx.deviceContext->CSSetConstantBuffers(0, 1, &g_dx.csInput);
-	g_dx.deviceContext->CSSetUnorderedAccessViews(0, 1, &g_dx.csOutputViewRW, 0);
+	g_dx.deviceContext->CSSetUnorderedAccessViews(0, 1, &g_dx.csOutputView, 0);
 
 	g_dx.deviceContext->Dispatch(g_dx.width / 16 * ssLvl + 16, g_dx.height / 16 * ssLvl + 16, 1);
 
@@ -51,7 +50,7 @@ VOID MyDirectX::Draw()
 	g_dx.deviceContext->VSSetShader(g_dx.vs, NULL, 0);
 
 	g_dx.deviceContext->PSSetShader(g_dx.ps, NULL, 0);
-	g_dx.deviceContext->PSSetShaderResources(0, 1, &g_dx.csOutputViewR);
+	g_dx.deviceContext->PSSetShaderResources(0, 1, &g_dx.psInputView);
 	g_dx.deviceContext->PSSetConstantBuffers(0, 1, &g_dx.csInput);
 
 
@@ -60,9 +59,30 @@ VOID MyDirectX::Draw()
 
 	// Flips the buffer with the image that is on the screen.
 	g_dx.swapChain->Present(1, 0);
+
+	// Debinds the SRV from the Pixel Shader
 	ID3D11ShaderResourceView* nullSRV = { nullptr };
 	g_dx.deviceContext->PSSetShaderResources(0, 1, &nullSRV);
 }
+
+VOID MyDirectX::ComputeNextLevel()
+{
+
+}
+
+/// <summary>
+/// Computes the original mandelBrot Set supersampled in 4K
+/// </summary>
+VOID MyDirectX::ComputeLvlOne()
+{
+
+}
+
+/*************************************************
+ *
+ *	Initialization (and Free)
+ *
+*************************************************/
 
 VOID MyDirectX::InitDirectX(HWND hWnd)
 {
@@ -70,11 +90,13 @@ VOID MyDirectX::InitDirectX(HWND hWnd)
 	InitTargetView();
 	CompileShaders();
 	InitCSInput();
-	InitCSOutputResource();
+	InitCSOutput();
 	InitCSOutputView();
 	InitPSInputView();
 	InitVertexBuffer();
 	InitFence();
+
+	SetViewport();
 }
 
 VOID MyDirectX::FreeDirectX()
@@ -102,13 +124,14 @@ VOID MyDirectX::InitDevice(HWND hWnd)
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.BufferCount = 1;
+	sd.BufferCount = 2;
 	sd.OutputWindow = hWnd;
+	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	sd.Windowed = true; // Call IDXGI::SetFullscreenState to change
 
 
 	// Create an array of featureLevels to be tested in the D3D11CreateDeviceAndSwapChain Function
-	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_1;
 
 	// Plan for single threading, then tack on a debug flag if it is defined.
 	UINT flags = D3D11_CREATE_DEVICE_SINGLETHREADED;
@@ -136,6 +159,10 @@ VOID MyDirectX::InitDevice(HWND hWnd)
 	hr = device->QueryInterface(__uuidof(ID3D11Device5), (void**)&g_dx.device); // Capture a pointer to a Device5 version of the device created earlier
 	assert(SUCCEEDED(hr) && "Device Update to Device 5 failed"); // TODO: Implement fallback.
 	hr = deviceContext->QueryInterface(__uuidof(ID3D11DeviceContext4), (void**)&g_dx.deviceContext);
+
+	// Release the temporary device and context that we created before the QueryInterface
+	device->Release();
+	deviceContext->Release();
 }
 
 VOID MyDirectX::InitTargetView()
@@ -151,6 +178,33 @@ VOID MyDirectX::InitTargetView()
 		framebuffer, 0, &g_dx.renderTargetView);
 	assert(SUCCEEDED(hr) && "Render Target View Initialization Failed");
 	framebuffer->Release();
+}
+
+VOID MyDirectX::SetViewport()
+{
+	// Basically, the dimensions of the frame the is being displayed.
+	D3D11_VIEWPORT viewport = {
+	  0.0f,
+	  0.0f,
+	  g_dx.width,
+	  g_dx.height,
+	  0.0f,
+	  1.0f };
+	g_dx.deviceContext->RSSetViewports(1, &viewport);
+
+	// Allows us to render to the back buffer rather than the screen.
+	g_dx.deviceContext->OMSetRenderTargets(1, &g_dx.renderTargetView, NULL);
+
+	// Feeds in the vertex buffer with the specification that it it a trainglestrip, built in a certain order listed in the documentation.
+	g_dx.deviceContext->IASetPrimitiveTopology(
+		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	g_dx.deviceContext->IASetInputLayout(g_dx.inputLayout);
+	g_dx.deviceContext->IASetVertexBuffers(
+		0,
+		1,
+		&g_dx.vertexBuffer,
+		&g_dx.vertexStride,
+		&g_dx.vertexOffset);
 }
 
 VOID MyDirectX::CompileShaders()
@@ -284,12 +338,12 @@ VOID MyDirectX::InitVertexBuffer()
 }
 
 // Switch to BC4 Version of texture for smaller memory footprint
-VOID MyDirectX::InitCSOutputResource()
+VOID MyDirectX::InitCSOutput()
 {
 	D3D11_TEXTURE2D_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(texDesc));
-	texDesc.Width = g_dx.width * ssLvl;
-	texDesc.Height = g_dx.height * ssLvl;
+	texDesc.Width = g_dx.width * ssLvl * 3;
+	texDesc.Height = g_dx.height * ssLvl * 3;
 	texDesc.MipLevels = 1;
 	texDesc.ArraySize = 1;
 	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -299,7 +353,32 @@ VOID MyDirectX::InitCSOutputResource()
 	texDesc.SampleDesc.Quality = 0;
 
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
-	texDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+	texDesc.CPUAccessFlags = 0;
+
+	HRESULT hr = g_dx.device->CreateTexture2D(
+		&texDesc,
+		NULL,
+		&g_dx.csOutput);
+	assert(SUCCEEDED(hr) && "CSOutput Creation Failed");
+}
+
+VOID MyDirectX::InitPSInput()
+{
+	D3D11_TEXTURE2D_DESC texDesc;
+	ZeroMemory(&texDesc, sizeof(texDesc));
+	texDesc.Width = g_dx.width * ssLvl * 3;
+	texDesc.Height = g_dx.height * ssLvl * 3;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// Only sample once, becasue UAV's don't support multisampling.
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	texDesc.CPUAccessFlags = 0;
 
 	HRESULT hr = g_dx.device->CreateTexture2D(
@@ -318,7 +397,7 @@ VOID MyDirectX::InitCSOutputView() {
 	HRESULT hr = g_dx.device->CreateUnorderedAccessView(
 		g_dx.csOutput,
 		&uavDesc,
-		&g_dx.csOutputViewRW
+		&g_dx.csOutputView
 	);
 	assert(SUCCEEDED(hr) && "CSOutputViewRW Creation Failed");
 }
@@ -334,7 +413,7 @@ VOID MyDirectX::InitPSInputView() {
 	HRESULT hr = g_dx.device->CreateShaderResourceView(
 		g_dx.csOutput,
 		&srvDesc,
-		&g_dx.csOutputViewR
+		&g_dx.psInputView
 	);
 	assert(SUCCEEDED(hr) && "CSOutputViewR Creation Failed");
 }
@@ -380,6 +459,12 @@ VOID MyDirectX::InitFence()
 	assert(SUCCEEDED(hr) && "Fence Creation Failed");
 }
 
+/*************************************************
+ *
+ *	Refreshing
+ *
+*************************************************/
+
 VOID MyDirectX::ResizeDevices(HWND hWnd)
 {
 	// Update the client rectangle
@@ -396,7 +481,7 @@ VOID MyDirectX::ResizeDevices(HWND hWnd)
 	HRESULT hr;
 	// Preserve the existing buffer count and format.
 	// Automatically choose the width and height to match the client rect for HWNDs.
-	hr = g_dx.swapChain->ResizeBuffers(1, g_dx.width, g_dx.height, DXGI_FORMAT_UNKNOWN, 0);
+	hr = g_dx.swapChain->ResizeBuffers(2, g_dx.width, g_dx.height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 
 	// Perform error handling here!
 
@@ -421,6 +506,7 @@ VOID MyDirectX::ResizeDevices(HWND hWnd)
 
 	// Set up the viewport.
 	D3D11_VIEWPORT vp;
+	ZeroMemory(&vp, sizeof(vp));
 	vp.Width = g_dx.width;
 	vp.Height = g_dx.height;
 	vp.MinDepth = 0.0f;
@@ -458,11 +544,11 @@ VOID MyDirectX::FlushConstantBuffer()
 
 VOID MyDirectX::RecreateCSOutput()
 {
-	g_dx.csOutputViewRW->Release();
-	g_dx.csOutputViewR->Release();
+	g_dx.csOutputView->Release();
+	g_dx.psInputView->Release();
 	g_dx.csOutput->Release();
 
-	InitCSOutputResource();
+	InitCSOutput();
 	InitCSOutputView();
 	InitPSInputView();
 }
