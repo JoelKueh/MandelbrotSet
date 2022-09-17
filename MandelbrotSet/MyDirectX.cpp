@@ -65,19 +65,6 @@ VOID MyDirectX::Draw()
 	g_dx.deviceContext->PSSetShaderResources(0, 1, &nullSRV);
 }
 
-VOID MyDirectX::ComputeNextLevel()
-{
-
-}
-
-/// <summary>
-/// Computes the original mandelBrot Set supersampled in 4K
-/// </summary>
-VOID MyDirectX::ComputeLvlOne()
-{
-
-}
-
 /*************************************************
  *
  *	Initialization (and Free)
@@ -100,6 +87,11 @@ VOID MyDirectX::InitDirectX(HWND hWnd)
 }
 
 VOID MyDirectX::FreeDirectX()
+{
+
+}
+
+VOID MyDirectX::TimeComputeShader()
 {
 
 }

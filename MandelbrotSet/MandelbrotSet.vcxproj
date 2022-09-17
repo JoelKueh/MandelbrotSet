@@ -142,12 +142,14 @@
     <ClInclude Include="MyDirectX.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MandelbrotSet.h" />
+    <ClInclude Include="RenderThread.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyDirectX.cpp" />
     <ClCompile Include="MandelbrotSet.cpp" />
+    <ClCompile Include="RenderThread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MandelbrotSet.rc" />

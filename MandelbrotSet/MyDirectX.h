@@ -8,31 +8,11 @@ using namespace DirectX;
 #include <d3d11_4.h>
 #include <d3dcompiler.h>
 #include <dxgi.h>
-//#include <d3d11_1.h>
-//#include <d3d11_2.h>
-//#include <d3d11_3.h>
-//#include <d3d11_4.h>
-//#include <d3d11sdklayers.h>
-//#include <d3d11shader.h>
-//#include <d3d11shadertracing.h>
-//#include <d3dcommon.h>
-//#include <d3dcsx.h>
-//#include <windows.graphics.directx.direct3d11.interop.h>
 
 #pragma comment (lib, "user32")
 #pragma comment (lib, "D3D11.lib")
 #pragma comment (lib, "D3Dcompiler.lib")
 #pragma comment (lib, "dxgi.lib")
-//#pragma comment (lib, "d3d11_1.lib")
-//#pragma comment (lib, "d3d11_2.lib")
-//#pragma comment (lib, "d3d11_3.lib")
-//#pragma comment (lib, "d3d11_4.lib")
-//#pragma comment (lib, "d3d11sdklayers.lib")
-//#pragma comment (lib, "d3d11shader.lib")
-//#pragma comment (lib, "d3d11shadertracing.lib")
-//#pragma comment (lib, "d3dcommon.lib")
-//#pragma comment (lib, "d3dcsx.lib")
-//#pragma comment (lib, "windows.graphics.directx.direct3d11.interop.lib")
 
 class MyDirectX
 {
@@ -43,7 +23,10 @@ public:
 	VOID InitDirectX(HWND hWnd);
 	VOID FreeDirectX();
 
-	VOID ComputeNextLevel();
+	/// <summary>
+	/// Run this in a separate thread to force the thread to wait until the compute shader finishes.
+	/// </summary>
+	VOID WaitForComputeShader();
 
 	VOID ResizeDevices(HWND hWnd);
 
@@ -100,9 +83,8 @@ private:
 	dxData g_dx;
 	
 	// Compute Levels
-	VOID ComputeLvlOne();
-	VOID ComputeLvlTwo();
-	VOID ComputeLvlThree();
+	VOID UpdateTexture();
+	VOID UpdateTextureSector();
 
 	VOID InitDevice(HWND hWnd);
 	VOID InitTargetView();
