@@ -30,18 +30,12 @@
     <ClInclude Include="MyDirectX.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RenderThread.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MandelbrotSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MyDirectX.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderThread.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
