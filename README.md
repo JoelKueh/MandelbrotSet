@@ -1,5 +1,7 @@
 # MandelbrotSet
-<p>This is my personal mandelbrot set project. It's nothing special, currently, I got it to work on my machine and my machine only. Other hardware might cause it to
-run completely differently, or even not at all.<br></p>
+<p>This is my personal mandelbrot set project. It's nothing special, I can only guarantee that it runs on my hardware on Directx 11.3. Other hardware might cause it to
+behave differently, or may even prevent it from running altogether.<br></p>
 <hr style="height:1px !important;">
-<p>If you want to give it a try, I will upload a zip with the necessary resources soon.</p>
+<p>The program uses a Compute Shader and a Texture2D to supersample the Mandelbrot Set at 4x. It then uses a Pixel Shader to draw from this texture to the screen.<br></p>
+<p>Currently, the program only renders the Mandelbrot set at the default window, however, I plan to implement capablility for smootly exploring the Mandelbrot set by using two textures and computing the Mandelbrot set around the screen.</p>
+<p>The project is on hold for now as I learn about Visual Basic .NET</p>
